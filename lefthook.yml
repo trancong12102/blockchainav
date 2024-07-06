@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    check:
+      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,yml,yaml}"
+      run: npx biome check --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true
+      stage_fixed: true
