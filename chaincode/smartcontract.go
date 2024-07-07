@@ -38,6 +38,45 @@ func (s *SmartContract) Ping(_ contractapi.TransactionContextInterface) error {
 	return nil
 }
 
+// SeedLedger creates 100 assets in the ledger.
+func (s *SmartContract) SeedLedger(ctx contractapi.TransactionContextInterface) error {
+	types := []string{
+		"PDF",
+		"PE",
+	}
+
+	for i := range 100 {
+		asset := Asset{
+			ID:       fmt.Sprintf("ASSET_%d", i),
+			CID:      fmt.Sprintf("CID_%d", i),
+			Type:     types[i%2],
+			Features: "[]",
+		}
+
+		assetJSON, err := json.Marshal(asset)
+		if err != nil {
+			return fmt.Errorf("failed to marshal asset: %w", err)
+		}
+
+		if err := ctx.GetStub().PutState(asset.ID, assetJSON); err != nil {
+			return fmt.Errorf("failed to put asset in world state: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// DeleteSeededAssets deletes all seeded assets from the ledger.
+func (s *SmartContract) DeleteSeededAssets(ctx contractapi.TransactionContextInterface) error {
+	for i := range 100 {
+		if err := ctx.GetStub().DelState(fmt.Sprintf("ASSET_%d", i)); err != nil {
+			return fmt.Errorf("failed to delete asset: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // CreateAsset issues a new asset to the world state with given details.
 func (s *SmartContract) CreateAsset(
 	ctx contractapi.TransactionContextInterface,
