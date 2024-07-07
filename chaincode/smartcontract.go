@@ -1,9 +1,11 @@
-package chaincode
+package main
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"github.com/hyperledger/fabric-contract-api-go/v2/contractapi"
@@ -14,11 +16,14 @@ type SmartContract struct {
 	contractapi.Contract
 }
 
+// ENUM(PDF, PE).
+type AssetType int
+
 type Asset struct {
-	CID      string `json:"cid"`
-	Features string `json:"features"`
-	ID       string `json:"id"`
-	Type     string `json:"type"`
+	CID      string    `json:"cid"`
+	Features string    `json:"features"`
+	ID       string    `json:"id"`
+	Type     AssetType `json:"type"`
 }
 
 // PaginatedQueryResult structure used for returning paginated query results and metadata.
@@ -38,50 +43,15 @@ func (s *SmartContract) Ping(_ contractapi.TransactionContextInterface) error {
 	return nil
 }
 
-// SeedLedger creates 100 assets in the ledger.
-func (s *SmartContract) SeedLedger(ctx contractapi.TransactionContextInterface) error {
-	types := []string{
-		"PDF",
-		"PE",
-	}
-
-	for i := range 100 {
-		asset := Asset{
-			ID:       fmt.Sprintf("ASSET_%d", i),
-			CID:      fmt.Sprintf("CID_%d", i),
-			Type:     types[i%2],
-			Features: "[]",
-		}
-
-		err := s.CreateAsset(ctx, asset.ID, asset.CID, asset.Type, asset.Features)
-		if err != nil {
-			return fmt.Errorf("failed to create asset: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// DeleteSeededAssets deletes all seeded assets from the ledger.
-func (s *SmartContract) DeleteSeededAssets(ctx contractapi.TransactionContextInterface) error {
-	for i := range 100 {
-		if err := ctx.GetStub().DelState(fmt.Sprintf("ASSET_%d", i)); err != nil {
-			return fmt.Errorf("failed to delete asset: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// CreateAsset issues a new asset to the world state with given details.
+// CreateAsset issues a new asset to the ledger state with given details.
 func (s *SmartContract) CreateAsset(
 	ctx contractapi.TransactionContextInterface,
-	id string,
-	cid string,
+	assetCID string,
+	assetID string,
 	assetType string,
 	features string,
 ) error {
-	exists, err := s.AssetExists(ctx, id)
+	exists, err := s.AssetExists(ctx, assetCID)
 	if err != nil {
 		return err
 	}
@@ -90,30 +60,35 @@ func (s *SmartContract) CreateAsset(
 		return ErrAssetExists
 	}
 
+	assetTypeEnum, err := ParseAssetType(assetType)
+	if err != nil {
+		return fmt.Errorf("parse asset type: %w", err)
+	}
+
 	asset := Asset{
-		ID:       id,
-		CID:      cid,
-		Type:     assetType,
+		ID:       assetID,
+		CID:      assetCID,
+		Type:     assetTypeEnum,
 		Features: features,
 	}
 
 	assetJSON, err := json.Marshal(asset)
 	if err != nil {
-		return fmt.Errorf("failed to marshal asset: %w", err)
+		return fmt.Errorf("marshal asset: %w", err)
 	}
 
-	if err := ctx.GetStub().PutState(id, assetJSON); err != nil {
-		return fmt.Errorf("failed to put asset in world state: %w", err)
+	if err := ctx.GetStub().PutState(assetCID, assetJSON); err != nil {
+		return fmt.Errorf("put asset in ledger state: %w", err)
 	}
 
 	return nil
 }
 
-// ReadAsset returns the asset stored in the world state with given id.
-func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, id string) (*Asset, error) {
-	assetJSON, err := ctx.GetStub().GetState(id)
+// ReadAsset returns the asset stored in the ledger state with given id.
+func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, cid string) (*Asset, error) {
+	assetJSON, err := ctx.GetStub().GetState(cid)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from world state: %w", err)
+		return nil, fmt.Errorf("read from ledger state: %w", err)
 	}
 
 	if assetJSON == nil {
@@ -124,20 +99,45 @@ func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, i
 
 	err = json.Unmarshal(assetJSON, &asset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal asset: %w", err)
+		return nil, fmt.Errorf("unmarshal asset: %w", err)
 	}
 
 	return &asset, nil
 }
 
-// AssetExists returns true when asset with given ID exists in world state.
-func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface, id string) (bool, error) {
-	assetJSON, err := ctx.GetStub().GetState(id)
+// AssetExists returns true when asset with given ID exists in ledger state.
+func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface, cid string) (bool, error) {
+	assetJSON, err := ctx.GetStub().GetState(cid)
 	if err != nil {
-		return false, fmt.Errorf("failed to read from world state: %w", err)
+		return false, fmt.Errorf("read from ledger state: %w", err)
 	}
 
 	return assetJSON != nil, nil
+}
+
+// ReadAssetsByTypeFromID returns all assets of a given type stored in the ledger state from a given ID.
+func (s *SmartContract) ReadAssetsByTypeFromID(
+	ctx contractapi.TransactionContextInterface,
+	assetType string,
+	fromID string,
+	pagesize int32,
+	bookmark string,
+) (*PaginatedQueryResult, error) {
+	queryString := fmt.Sprintf(`{"selector":{"type":"%s","id":{"$gte":"%s"}}}`, assetType, fromID)
+
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, pagesize, bookmark)
+}
+
+// ReadAssetsByType returns all assets of a given type stored in the ledger state.
+func (s *SmartContract) ReadAssetsByType(
+	ctx contractapi.TransactionContextInterface,
+	assetType string,
+	pagesize int32,
+	bookmark string,
+) (*PaginatedQueryResult, error) {
+	queryString := fmt.Sprintf(`{"selector":{"type":"%s"}}`, assetType)
+
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, pagesize, bookmark)
 }
 
 // QueryAssets uses a query string, page size and a bookmark to perform a query
@@ -150,10 +150,10 @@ func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface,
 func (s *SmartContract) QueryAssets(
 	ctx contractapi.TransactionContextInterface,
 	queryString string,
-	pageSize int,
+	pageSize int32,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
-	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, pageSize, bookmark)
 }
 
 // getQueryResultForQueryStringWithPagination executes the passed in query string with
@@ -166,7 +166,7 @@ func getQueryResultForQueryStringWithPagination(
 ) (*PaginatedQueryResult, error) {
 	resultsIterator, responseMetadata, err := ctx.GetStub().GetQueryResultWithPagination(queryString, pageSize, bookmark)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get query result: %w", err)
+		return nil, fmt.Errorf("get query result: %w", err)
 	}
 	defer resultsIterator.Close()
 
@@ -189,18 +189,39 @@ func constructQueryResponseFromIterator(resultsIterator shim.StateQueryIteratorI
 	for resultsIterator.HasNext() {
 		queryResult, err := resultsIterator.Next()
 		if err != nil {
-			return nil, fmt.Errorf("failed to read asset from iterator: %w", err)
+			return nil, fmt.Errorf("read asset from iterator: %w", err)
 		}
 
 		var asset Asset
 
 		err = json.Unmarshal(queryResult.GetValue(), &asset)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal asset: %w", err)
+			return nil, fmt.Errorf("unmarshal asset: %w", err)
 		}
 
 		assets = append(assets, &asset)
 	}
 
 	return assets, nil
+}
+
+func startChaincode() error {
+	chaincode, err := contractapi.NewChaincode(new(SmartContract))
+	if err != nil {
+		return fmt.Errorf("creating blockchain-av chaincode: %w", err)
+	}
+
+	if err := chaincode.Start(); err != nil {
+		return fmt.Errorf("starting blockchain-av chaincode: %w", err)
+	}
+
+	return nil
+}
+
+func main() {
+	err := startChaincode()
+	if err != nil {
+		slog.Error("start chaincode", slog.Any("error", err))
+		os.Exit(1)
+	}
 }

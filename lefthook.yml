@@ -5,6 +5,7 @@ pre-commit:
       run: npx biome check --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true
       stage_fixed: true
     check-go:
+      root: chaincode/
       glob: "*.go"
       run: golangci-lint run --fix
       stage_fixed: true

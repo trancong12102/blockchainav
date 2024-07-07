@@ -3,7 +3,6 @@ run:
 linters:
   enable-all: true
   disable:
-    - exhaustruct
     - godox # Tool for detection of FIXME, TODO and other comment keywords
     - depguard # Checks that only allowed dependencies are used
     ## Deprecated linters
@@ -24,9 +23,7 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/trancong12102/sish-gitlab-keys)
   varnamelen:
     ignore-names:
       - r
       - w
-      - id
