@@ -171,6 +171,9 @@ func (s *SmartContract) GetAssets(
 		"selector": map[string]interface{}{
 			"type": assetType,
 		},
+		"sort": []map[string]string{
+			{"id": "desc"},
+		},
 	}
 
 	queryJSON, err := json.Marshal(query)
