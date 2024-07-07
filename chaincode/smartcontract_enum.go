@@ -13,38 +13,28 @@ import (
 
 const (
 	// AssetTypePDF is a AssetType of type PDF.
-	AssetTypePDF AssetType = iota
+	AssetTypePDF AssetType = "PDF"
 	// AssetTypePE is a AssetType of type PE.
-	AssetTypePE
+	AssetTypePE AssetType = "PE"
 )
 
 var ErrInvalidAssetType = errors.New("not a valid AssetType")
 
-const _AssetTypeName = "PDFPE"
-
-var _AssetTypeMap = map[AssetType]string{
-	AssetTypePDF: _AssetTypeName[0:3],
-	AssetTypePE:  _AssetTypeName[3:5],
-}
-
 // String implements the Stringer interface.
 func (x AssetType) String() string {
-	if str, ok := _AssetTypeMap[x]; ok {
-		return str
-	}
-	return fmt.Sprintf("AssetType(%d)", x)
+	return string(x)
 }
 
 // IsValid provides a quick way to determine if the typed value is
 // part of the allowed enumerated values
 func (x AssetType) IsValid() bool {
-	_, ok := _AssetTypeMap[x]
-	return ok
+	_, err := ParseAssetType(string(x))
+	return err == nil
 }
 
 var _AssetTypeValue = map[string]AssetType{
-	_AssetTypeName[0:3]: AssetTypePDF,
-	_AssetTypeName[3:5]: AssetTypePE,
+	"PDF": AssetTypePDF,
+	"PE":  AssetTypePE,
 }
 
 // ParseAssetType attempts to convert a string to a AssetType.
@@ -52,18 +42,17 @@ func ParseAssetType(name string) (AssetType, error) {
 	if x, ok := _AssetTypeValue[name]; ok {
 		return x, nil
 	}
-	return AssetType(0), fmt.Errorf("%s is %w", name, ErrInvalidAssetType)
+	return AssetType(""), fmt.Errorf("%s is %w", name, ErrInvalidAssetType)
 }
 
 // MarshalText implements the text marshaller method.
 func (x AssetType) MarshalText() ([]byte, error) {
-	return []byte(x.String()), nil
+	return []byte(string(x)), nil
 }
 
 // UnmarshalText implements the text unmarshaller method.
 func (x *AssetType) UnmarshalText(text []byte) error {
-	name := string(text)
-	tmp, err := ParseAssetType(name)
+	tmp, err := ParseAssetType(string(text))
 	if err != nil {
 		return err
 	}

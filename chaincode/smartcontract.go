@@ -17,7 +17,7 @@ type SmartContract struct {
 }
 
 // ENUM(PDF, PE).
-type AssetType int
+type AssetType string
 
 type Asset struct {
 	CID      string    `json:"cid"`
