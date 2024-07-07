@@ -1,13 +1,6 @@
 {
   "index": {
-    "fields": [
-      {
-        "id": "desc"
-      },
-      {
-        "type": "desc"
-      }
-    ]
+    "fields": ["id", "type"]
   },
   "ddoc": "indexIdTypeDoc",
   "name": "indexIdType",
