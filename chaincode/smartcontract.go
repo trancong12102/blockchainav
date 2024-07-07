@@ -120,24 +120,24 @@ func (s *SmartContract) ReadAssetsByTypeFromID(
 	ctx contractapi.TransactionContextInterface,
 	assetType string,
 	fromID string,
-	pagesize int32,
+	pageSize int,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
 	queryString := fmt.Sprintf(`{"selector":{"type":"%s","id":{"$gte":"%s"}},"sort":[{"id":"asc"}]}`, assetType, fromID)
 
-	return getQueryResultForQueryStringWithPagination(ctx, queryString, pagesize, bookmark)
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
 }
 
 // ReadAssetsByType returns all assets of a given type stored in the ledger state.
 func (s *SmartContract) ReadAssetsByType(
 	ctx contractapi.TransactionContextInterface,
 	assetType string,
-	pagesize int32,
+	pageSize int,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
 	queryString := fmt.Sprintf(`{"selector":{"type":"%s"}}`, assetType)
 
-	return getQueryResultForQueryStringWithPagination(ctx, queryString, pagesize, bookmark)
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
 }
 
 // QueryAssets uses a query string, page size and a bookmark to perform a query
@@ -150,10 +150,10 @@ func (s *SmartContract) ReadAssetsByType(
 func (s *SmartContract) QueryAssets(
 	ctx contractapi.TransactionContextInterface,
 	queryString string,
-	pageSize int32,
+	pageSize int,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
-	return getQueryResultForQueryStringWithPagination(ctx, queryString, pageSize, bookmark)
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
 }
 
 // getQueryResultForQueryStringWithPagination executes the passed in query string with
