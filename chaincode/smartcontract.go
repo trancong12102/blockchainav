@@ -53,13 +53,9 @@ func (s *SmartContract) SeedLedger(ctx contractapi.TransactionContextInterface) 
 			Features: "[]",
 		}
 
-		assetJSON, err := json.Marshal(asset)
+		err := s.CreateAsset(ctx, asset.ID, asset.CID, asset.Type, asset.Features)
 		if err != nil {
-			return fmt.Errorf("failed to marshal asset: %w", err)
-		}
-
-		if err := ctx.GetStub().PutState(asset.ID, assetJSON); err != nil {
-			return fmt.Errorf("failed to put asset in world state: %w", err)
+			return fmt.Errorf("failed to create asset: %w", err)
 		}
 	}
 
