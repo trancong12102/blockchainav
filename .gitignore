@@ -52,3 +52,7 @@ deploy/**/.env
 
 # and uncomment the following lines
 # .pnp.*
+
+## Editors
+.vscode
+.idea
