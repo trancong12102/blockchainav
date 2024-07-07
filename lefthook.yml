@@ -1,6 +1,10 @@
 pre-commit:
   commands:
-    check:
+    check-ts:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,yml,yaml}"
       run: npx biome check --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true
+      stage_fixed: true
+    check-go:
+      glob: "*.go"
+      run: golangci-lint run --fix
       stage_fixed: true

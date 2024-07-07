@@ -1,0 +1,23 @@
+services:
+  ipfs:
+    image: ipfs/kubo:latest
+    restart: unless-stopped
+    volumes:
+      - ipfs_path:/data/ipfs
+      - ipfs_fuse:/ipfs
+      - ipns_fuse:/ipns
+      - ./001-init.sh:/container-init.d/001-init.sh
+    environment:
+      - IPFS_PATH=/data/ipfs
+    ports:
+      # P2P TCP/QUIC transports
+      - 4001:4001/tcp
+      - 4001:4001/udp
+      # RPC API
+      - 5001:5001
+      # HTTP Gateway
+      - 58080:8080
+volumes:
+  ipfs_path:
+  ipfs_fuse:
+  ipns_fuse:
