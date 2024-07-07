@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"github.com/hyperledger/fabric-contract-api-go/v2/contractapi"
 )
 
@@ -20,9 +21,11 @@ type Asset struct {
 	Type     string `json:"type"`
 }
 
-type AssetCursor struct {
-	Assets   []*Asset `json:"assets"`
-	Bookmark string   `json:"bookmark"`
+// PaginatedQueryResult structure used for returning paginated query results and metadata.
+type PaginatedQueryResult struct {
+	Records             []*Asset `json:"records"`
+	FetchedRecordsCount int32    `json:"fetchedRecordsCount"`
+	Bookmark            string   `json:"bookmark"`
 }
 
 var (
@@ -102,29 +105,61 @@ func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface,
 	return assetJSON != nil, nil
 }
 
-// ReadAssets returns paginated assets.
-func (s *SmartContract) ReadAssets(
+// QueryAssets uses a query string, page size and a bookmark to perform a query
+// for assets. Query string matching state database syntax is passed in and executed as is.
+// The number of fetched records would be equal to or lesser than the specified page size.
+// Supports ad hoc queries that can be defined at runtime by the client.
+// Only available on state databases that support rich query (e.g. CouchDB)
+// Paginated queries are only valid for read only transactions.
+// Example: Pagination with Ad hoc Rich Query.
+func (s *SmartContract) QueryAssets(
 	ctx contractapi.TransactionContextInterface,
+	queryString string,
+	pageSize int,
+	bookmark string,
+) (*PaginatedQueryResult, error) {
+	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
+}
+
+// getQueryResultForQueryStringWithPagination executes the passed in query string with
+// pagination info. The result set is built and returned as a byte array containing the JSON results.
+func getQueryResultForQueryStringWithPagination(
+	ctx contractapi.TransactionContextInterface,
+	queryString string,
 	pageSize int32,
 	bookmark string,
-) (*AssetCursor, error) {
-	resultsIterator, metadata, err := ctx.GetStub().GetStateByRangeWithPagination("", "", pageSize, bookmark)
+) (*PaginatedQueryResult, error) {
+	resultsIterator, responseMetadata, err := ctx.GetStub().GetQueryResultWithPagination(queryString, pageSize, bookmark)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read assets from world state: %w", err)
+		return nil, fmt.Errorf("failed to get query result: %w", err)
 	}
 	defer resultsIterator.Close()
 
+	assets, err := constructQueryResponseFromIterator(resultsIterator)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PaginatedQueryResult{
+		Records:             assets,
+		FetchedRecordsCount: responseMetadata.GetFetchedRecordsCount(),
+		Bookmark:            responseMetadata.GetBookmark(),
+	}, nil
+}
+
+// constructQueryResponseFromIterator constructs a slice of assets from the resultsIterator.
+func constructQueryResponseFromIterator(resultsIterator shim.StateQueryIteratorInterface) ([]*Asset, error) {
 	assets := make([]*Asset, 0)
 
 	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next()
+		queryResult, err := resultsIterator.Next()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read asset from iterator: %w", err)
 		}
 
 		var asset Asset
 
-		err = json.Unmarshal(queryResponse.GetValue(), &asset)
+		err = json.Unmarshal(queryResult.GetValue(), &asset)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal asset: %w", err)
 		}
@@ -132,8 +167,5 @@ func (s *SmartContract) ReadAssets(
 		assets = append(assets, &asset)
 	}
 
-	return &AssetCursor{
-		Bookmark: metadata.GetBookmark(),
-		Assets:   assets,
-	}, nil
+	return assets, nil
 }
