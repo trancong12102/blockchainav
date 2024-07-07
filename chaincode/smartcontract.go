@@ -84,8 +84,8 @@ func (s *SmartContract) CreateAsset(
 	return nil
 }
 
-// ReadAsset returns the asset stored in the ledger state with given id.
-func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, cid string) (*Asset, error) {
+// GetAsset returns the asset stored in the ledger state with given id.
+func (s *SmartContract) GetAsset(ctx contractapi.TransactionContextInterface, cid string) (*Asset, error) {
 	assetJSON, err := ctx.GetStub().GetState(cid)
 	if err != nil {
 		return nil, fmt.Errorf("read from ledger state: %w", err)
@@ -115,29 +115,70 @@ func (s *SmartContract) AssetExists(ctx contractapi.TransactionContextInterface,
 	return assetJSON != nil, nil
 }
 
-// ReadAssetsByTypeFromID returns all assets of a given type stored in the ledger state from a given ID.
-func (s *SmartContract) ReadAssetsByTypeFromID(
+// GetLatestAsset returns the latest asset of a given type stored in the ledger state.
+func (s *SmartContract) GetLatestAsset(
+	ctx contractapi.TransactionContextInterface,
+	assetType string,
+) (*Asset, error) {
+	assetsResult, err := s.GetAssets(ctx, assetType, 1, "")
+	if err != nil {
+		return nil, fmt.Errorf("get assets: %w", err)
+	}
+
+	if len(assetsResult.Records) == 0 {
+		return nil, ErrNotFound
+	}
+
+	return assetsResult.Records[0], nil
+}
+
+// GetAssetsFromID returns all assets of a given type stored in the ledger state from a given ID.
+func (s *SmartContract) GetAssetsFromID(
 	ctx contractapi.TransactionContextInterface,
 	assetType string,
 	fromID string,
 	pageSize int,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
-	queryString := fmt.Sprintf(`{"selector":{"type":"%s","id":{"$gte":"%s"}},"sort":[{"id":"asc"}]}`, assetType, fromID)
+	query := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"type": assetType,
+			"id": map[string]interface{}{
+				"$gt": fromID,
+			},
+		},
+		"sort": []map[string]string{
+			{"id": "asc"},
+		},
+	}
 
-	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
+	queryJSON, err := json.Marshal(query)
+	if err != nil {
+		return nil, fmt.Errorf("marshal query: %w", err)
+	}
+
+	return getQueryResultForQueryStringWithPagination(ctx, string(queryJSON), int32(pageSize), bookmark)
 }
 
-// ReadAssetsByType returns all assets of a given type stored in the ledger state.
-func (s *SmartContract) ReadAssetsByType(
+// GetAssets returns all assets of a given type stored in the ledger state.
+func (s *SmartContract) GetAssets(
 	ctx contractapi.TransactionContextInterface,
 	assetType string,
 	pageSize int,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
-	queryString := fmt.Sprintf(`{"selector":{"type":"%s"}}`, assetType)
+	query := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"type": assetType,
+		},
+	}
 
-	return getQueryResultForQueryStringWithPagination(ctx, queryString, int32(pageSize), bookmark)
+	queryJSON, err := json.Marshal(query)
+	if err != nil {
+		return nil, fmt.Errorf("marshal query: %w", err)
+	}
+
+	return getQueryResultForQueryStringWithPagination(ctx, string(queryJSON), int32(pageSize), bookmark)
 }
 
 // QueryAssets uses a query string, page size and a bookmark to perform a query
