@@ -21,7 +21,7 @@ type Asset struct {
 }
 
 type AssetCursor struct {
-	Assets   []*Asset `json:"assets"`
+	Assets   []*Asset `json:"assets,omitempty"`
 	Bookmark string   `json:"bookmark"`
 }
 
