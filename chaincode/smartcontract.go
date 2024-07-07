@@ -21,7 +21,7 @@ type Asset struct {
 }
 
 type AssetCursor struct {
-	Assets   []*Asset `json:"assets,omitempty"`
+	Assets   []*Asset `json:"assets"`
 	Bookmark string   `json:"bookmark"`
 }
 
@@ -114,7 +114,7 @@ func (s *SmartContract) ReadAssets(
 	}
 	defer resultsIterator.Close()
 
-	var assets []*Asset
+	assets := make([]*Asset, 0)
 
 	for resultsIterator.HasNext() {
 		queryResponse, err := resultsIterator.Next()
