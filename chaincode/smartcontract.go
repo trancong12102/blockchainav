@@ -123,7 +123,7 @@ func (s *SmartContract) ReadAssetsByTypeFromID(
 	pagesize int32,
 	bookmark string,
 ) (*PaginatedQueryResult, error) {
-	queryString := fmt.Sprintf(`{"selector":{"type":"%s","id":{"$gte":"%s"}}}`, assetType, fromID)
+	queryString := fmt.Sprintf(`{"selector":{"type":"%s","id":{"$gte":"%s"}},"sort":[{"id":"asc"}]}`, assetType, fromID)
 
 	return getQueryResultForQueryStringWithPagination(ctx, queryString, pagesize, bookmark)
 }
