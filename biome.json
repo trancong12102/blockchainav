@@ -6,7 +6,7 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "attributePosition": "auto",
-    "ignore": [".vscode", ".idea", "dist", ".next"]
+    "ignore": [".vscode", ".idea", "dist", ".next", "pnpm-lock.yaml"]
   },
   "organizeImports": { "enabled": true },
   "linter": {
