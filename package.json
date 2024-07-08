@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "biome": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+    "lint": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
   },
   "dependencies": {
     "@hono/node-server": "^1.12.0",
